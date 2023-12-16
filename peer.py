@@ -369,7 +369,7 @@ class peerMain:
                     self.peerClient.join()
             # if choice is 6 and user is not logged in, asks for the username
             # and the password to delete account
-            elif choice == "6" and not self.isOnline:
+            elif choice == "6":
                 username = input("username: ")
                 password = input("password: ")
                 

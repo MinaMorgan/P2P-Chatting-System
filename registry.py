@@ -3,6 +3,7 @@ import threading
 import select
 import logging
 import db
+import os
 
 # This class is used to process the peer messages sent to registry
 # for each peer connected to registry, a new client thread is created
@@ -20,14 +21,16 @@ class ClientThread(threading.Thread):
         self.username = None
         self.isOnline = True
         self.udpServer = None
-        print("New thread started for " + ip + ":" + str(port))
+        ### print("New thread started for " + ip + ":" + str(port))
 
     # main of the thread
     def run(self):
         # locks for thread which will be used for thread synchronization
         self.lock = threading.Lock()
-        print("Connection from: " + self.ip + ":" + str(port))
-        print("IP Connected: " + self.ip)
+        print(format["BGREEN"] + "Connection from:" + format["END"])
+        print("IP address: " + format["BBLUE"] + self.ip + format["END"])
+        print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
+        print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
         
         while True:
             try:
@@ -39,14 +42,21 @@ class ClientThread(threading.Thread):
                     # join-exist is sent to peer,
                     # if an account with this username already exists
                     if db.is_account_exist(message[1]):
+                        print(format["BACKRED"] + "Join exist:" + format["END"])
+                        print(format["BACKRED"] + "IP address: " + self.ip + format["END"])
+                        print(format["BACKRED"] + "Port number: " + str(self.port) + format["END"])
+                        print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
                         response = "join-exist"
-                        print("From-> " + self.ip + ":" + str(self.port) + " " + response)
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response)  
                         self.tcpClientSocket.send(response.encode())
                     # join-success is sent to peer,
                     # if an account with this username is not exist, and the account is created
                     else:
                         db.register(message[1], message[2])
+                        print(format["BGREEN"] + "Join success:" + format["END"])
+                        print("IP address: " + format["BBLUE"] + self.ip + format["END"])
+                        print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
+                        print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
                         response = "join-success"
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
                         self.tcpClientSocket.send(response.encode())
@@ -109,11 +119,18 @@ class ClientThread(threading.Thread):
                                 del tcpThreads[message[1]]
                         finally:
                             self.lock.release()
-                        print(self.ip + ":" + str(self.port) + " is logged out")
+                        print(format["BRED"] + "Connection end:" + format["END"])
+                        print("IP address: " + format["BBLUE"] + self.ip + format["END"])
+                        print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
+                        print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
                         self.tcpClientSocket.close()
                         self.udpServer.timer.cancel()
                         break
                     else:
+                        print(format["BRED"] + "Connection end:" + format["END"])
+                        print("IP address: " + format["BBLUE"] + self.ip + format["END"])
+                        print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
+                        print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
                         self.tcpClientSocket.close()
                         break
                 #   SEARCH  #
@@ -215,8 +232,27 @@ class UDPServer(threading.Thread):
         self.timer.start()
 
 
+# enables ansi escape characters in terminal
+os.system("")  
+format = {
+    "RED": "\033[31m",
+    "BRED": "\033[31;1m",
+    "BACKRED": "\033[41;1m",
+    
+    "GREEN": "\033[32m",
+    "BGREEN": "\033[32;1m",
+    
+    "YELLOW": "\033[33m",
+    
+    "BLUE": "\033[34m",
+    "BBLUE": "\033[34;1m",
+    
+    "BOLD": "\033[1m",
+    "END": "\033[0m",
+}
+
 # tcp and udp server port initializations
-print("Registy started...")
+print("\n" + format["BGREEN"] + "Registy started:" + format["END"])
 port = 15600
 portUDP = 15500
 
@@ -235,8 +271,8 @@ except gaierror:
     host = ni.ifaddresses('en0')[ni.AF_INET][0]['addr']
 
 
-print("Registry IP address: " + host)
-print("Registry port number: " + str(port))
+print("IP address: " + format["BBLUE"] + host + format["END"])
+print("Port number: " + format["BBLUE"] + str(port) + format["END"])
 
 # onlinePeers list for online account
 onlinePeers = {}
@@ -261,10 +297,10 @@ inputs = [tcpSocket, udpSocket]
 # log file initialization
 logging.basicConfig(filename="registry.log", level=logging.INFO)
 
+print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
+
 # as long as at least a socket exists to listen registry runs
 while inputs:
-
-    print("Listening for incoming connections...")
     # monitors for the incoming connections
     readable, writable, exceptional = select.select(inputs, [], [])
     for s in readable:
@@ -286,7 +322,8 @@ while inputs:
                 if message[1] in tcpThreads:
                     # resets the timeout for that peer since the hello message is received
                     tcpThreads[message[1]].resetTimeout()
-                    print("Hello is received from " + message[1])
+                    ### print("Hello is received from " + message[1])
+                    ### print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
                     logging.info("Received from " + clientAddress[0] + ":" + str(clientAddress[1]) + " -> " + " ".join(message))
                     
 # registry tcp socket is closed

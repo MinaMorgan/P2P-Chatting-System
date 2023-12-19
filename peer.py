@@ -4,6 +4,7 @@ import threading
 import time
 import select
 import logging
+import os
 
 # Server side of peer
 class PeerServer(threading.Thread):
@@ -275,7 +276,7 @@ class peerMain:
     # peer initializations
     def __init__(self):
         # ip address of the registry
-        self.registryName = input("Enter IP address of registry: ")
+        self.registryName = input(format["CYAN"] + "\nEnter IP address of registry: " + format["END"])
         #self.registryName = 'localhost'
         # port number of the registry
         self.registryPort = 15600
@@ -305,21 +306,25 @@ class peerMain:
         # as long as the user is not logged out, asks to select an option in the menu
         while choice != "3":
             # menu selection prompt
-            choice = input("Choose: \nCreate account: 1\nLogin: 2\nLogout: 3\nSearch: 4\nStart a chat: 5\nDelete account: 6\n")
+            print(format["BCYAN"] + "\n\nCreate account: 1\nLogin: 2\nLogout: 3\nSearch: 4\nStart a chat: 5\nDelete account: 6" + format["END"])
+            choice = input(format["CYAN"] + "\nChoice:" + format["END"])
+            print()
             # if choice is 1, creates an account with the username
             # and password entered by the user
             if choice == "1":
-                username = input("username: ")
-                password = input("password: ")
+                print(format["BCYAN"] + "Create Account" + format["END"])
+                username = input(format["CYAN"] + "username: " + format["END"])
+                password = input(format["CYAN"] + "password: " + format["END"])
                 
                 self.createAccount(username, password)
             # if choice is 2 and user is not logged in, asks for the username
             # and the password to login
             elif choice == "2" and not self.isOnline:
-                username = input("username: ")
-                password = input("password: ")
+                print(format["BCYAN"] + "Log In" + format["END"])
+                username = input(format["CYAN"] + "username: " + format["END"])
+                password = input(format["CYAN"] + "password: " + format["END"])
                 # asks for the port number for server's tcp socket
-                peerServerPort = int(input("Enter a port number for peer server: "))
+                peerServerPort = int(input(format["CYAN"] + "Enter a port number for peer server: " + format["END"]))
                 
                 status = self.login(username, password, peerServerPort)
                 # is user logs in successfully, peer variables are set
@@ -342,22 +347,27 @@ class peerMain:
                 self.peerServer.tcpServerSocket.close()
                 if self.peerClient != None:
                     self.peerClient.tcpClientSocket.close()
-                print("Logged out successfully")
+                print(format["BRED"] + "Logged out successfully" + format["END"])
             # is peer is not logged in and exits the program
             elif choice == "3":
                 self.logout(2)
+                print(format["BRED"] + "Logged out successfully" + format["END"])
             # if choice is 4 and user is online, then user is asked
             # for a username that is wanted to be searched
             elif choice == "4" and self.isOnline:
-                username = input("Username to be searched: ")
+                print(format["BCYAN"] + "Search Account" + format["END"])
+                username = input(format["CYAN"] + "username: " + format["END"])
                 searchStatus = self.searchUser(username)
                 # if user is found its ip address is shown to user
                 if searchStatus != None and searchStatus != 0:
                     print("IP address of " + username + " is " + searchStatus)
+            elif choice == "4":
+                print(format["BRED"] + "You must log in to search" + format["END"])
             # if choice is 5 and user is online, then user is asked
             # to enter the username of the user that is wanted to be chatted
             elif choice == "5" and self.isOnline:
-                username = input("Enter the username of user to start chat: ")
+                print(format["BCYAN"] + "One to One Chat" + format["END"])
+                username = input(format["CYAN"] + "username: " + format["END"])
                 searchStatus = self.searchUser(username)
                 # if searched user is found, then its ip address and port number is retrieved
                 # and a client thread is created
@@ -367,11 +377,14 @@ class peerMain:
                     self.peerClient = PeerClient(searchStatus[0], int(searchStatus[1]) , self.loginCredentials[0], self.peerServer, None)
                     self.peerClient.start()
                     self.peerClient.join()
+            elif choice == "5":
+                print(format["BRED"] + "You must log in to start chat" + format["END"])
             # if choice is 6 and user is not logged in, asks for the username
             # and the password to delete account
             elif choice == "6":
-                username = input("username: ")
-                password = input("password: ")
+                print(format["BCYAN"] + "Delete Account" + format["END"])
+                username = input(format["CYAN"] + "username: " + format["END"])
+                password = input(format["CYAN"] + "password: " + format["END"])
                 
                 self.delete(username, password)
             # if this is the receiver side then it will get the prompt to accept an incoming request during the main loop
@@ -421,9 +434,9 @@ class peerMain:
         response = self.tcpClientSocket.recv(1024).decode()
         logging.info("Received from " + self.registryName + " -> " + response)
         if response == "join-success":
-            print("Account created...")
+            print(format["BGREEN"] + "\nAccount created..." + format["END"])
         elif response == "join-exist":
-            print("choose another username or login...")
+            print(format["BRED"] + "\nchoose another username or login..." + format["END"])
 
     # login function
     def login(self, username, password, peerServerPort):
@@ -436,16 +449,16 @@ class peerMain:
         response = self.tcpClientSocket.recv(1024).decode()
         logging.info("Received from " + self.registryName + " -> " + response)
         if response == "login-success":
-            print("Logged in successfully...")
+            print(format["BGREEN"] + "\nLogged in successfully..." + format["END"])
             return 1
         elif response == "login-account-not-exist":
-            print("Account does not exist...")
+            print(format["BRED"] + "\nAccount does not exist..." + format["END"])
             return 0
         elif response == "login-online":
-            print("Account is already online...")
+            print(format["BRED"] + "\nAccount is already online..." + format["END"])
             return 2
         elif response == "login-wrong-password":
-            print("Wrong password...")
+            print(format["BRED"] + "\nWrong password..." + format["END"])
             return 3
     
     # logout function
@@ -472,13 +485,13 @@ class peerMain:
         response = self.tcpClientSocket.recv(1024).decode().split()
         logging.info("Received from " + self.registryName + " -> " + " ".join(response))
         if response[0] == "search-success":
-            print(username + " is found successfully...")
+            print(format["BGREEN"] + "\n" + username + " is found successfully...")
             return response[1] # this line return ip and port number
         elif response[0] == "search-user-not-online":
-            print(username + " is not online...")
+            print(format["BRED"] + "\n" + username + " is not online..." + format["END"])
             return 0
         elif response[0] == "search-user-not-found":
-            print(username + " is not found")
+            print(format["BRED"] + "\n" + username + " is not found" + format["END"])
             return None
     
     # account delete function
@@ -491,13 +504,13 @@ class peerMain:
         response = self.tcpClientSocket.recv(1024).decode()
         logging.info("Received from " + self.registryName + " -> " + response)
         if response == "delete-success":
-            print("Account deleted successfully...")
+            print(format["BGREEN"] + "\nAccount deleted successfully..." + format["END"])
         elif response == "delete-account-not-exist":
-            print("Account does not exist...")
+            print(format["BRED"] + "\nAccount does not exist..." + format["END"])
         elif response == "delete-online":
-            print("Account is already online so we can't delete it now\nTry again later...")
+            print(format["BRED"] + "\nAccount is already online so we can't delete it now\nTry again later..." + format["END"])
         elif response == "delete-wrong-password":
-            print("Wrong password...")
+            print(format["BRED"] + "\nWrong password..." + format["END"])
     
     # function for sending hello message
     # a timer thread is used to send hello messages to udp socket of registry
@@ -508,5 +521,26 @@ class peerMain:
         self.timer = threading.Timer(1, self.sendHelloMessage)
         self.timer.start()
 
+# enables ansi escape characters in terminal
+os.system("")  
+format = {
+    "RED": "\033[31m",
+    "BRED": "\033[31;1m",
+    "BACKRED": "\033[41;1m",
+    
+    "GREEN": "\033[32m",
+    "BGREEN": "\033[32;1m",
+    
+    "YELLOW": "\033[33m",
+    
+    "BLUE": "\033[34m",
+    "BBLUE": "\033[34;1m",
+    
+    "CYAN": "\033[36m",
+    "BCYAN": "\033[36;1m",
+    
+    "BOLD": "\033[1m",
+    "END": "\033[0m",
+}
 # peer is started
 main = peerMain()

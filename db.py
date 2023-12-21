@@ -25,8 +25,15 @@ class DB:
             "password": password
         }
         self.db.accounts.insert_one(account)                                    #new edit
-        
-        
+
+  
+    def get_all_online_accounts(self):
+        online_accounts_cursor = self.db.online_peers.find({}, {"_id": 0, "username": 1})
+        online_accounts = [account["username"] for account in online_accounts_cursor]
+        return online_accounts
+
+    
+    
     def delete_account(self, username):
         self.db.accounts.delete_one({"username": username})                     #new function
 

@@ -153,6 +153,22 @@ class ClientThread(threading.Thread):
                         response = "search-user-not-found"
                         logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
                         self.tcpClientSocket.send(response.encode())
+                #   ONLINE PEERS   #
+                elif message[0] == "ONLINE":
+                    onlineUsers=db.get_all_online_accounts()
+                    # checks if an account with the username exists
+                    if len(onlineUsers)!=0:
+                        # checks if the account is online
+                        # and sends the related response to peer
+                            response="Online-success"
+                            for i in onlineUsers:
+                              response += ":"+ i  
+                            logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
+                            self.tcpClientSocket.send(response.encode())
+                    else:
+                            response = "no-user-online"
+                            logging.info("Send to " + self.ip + ":" + str(self.port) + " -> " + response) 
+                            self.tcpClientSocket.send(response.encode())
                 #   DELETE    #
                 elif message[0] == "DELETE":
                     # delete-account-not-exist is sent to peer,

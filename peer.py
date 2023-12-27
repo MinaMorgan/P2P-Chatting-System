@@ -5,6 +5,7 @@ import time
 import select
 import logging
 import os
+import ast
 
 # Server side of peer
 class PeerServer(threading.Thread):
@@ -23,6 +24,7 @@ class PeerServer(threading.Thread):
         # if 1, then user is already chatting with someone
         # if 0, then user is not chatting with anyone
         self.isChatRequested = 0
+        self.isRoomRequested = 0
         # keeps the socket for the peer that is connected to this peer
         self.connectedPeerSocket = None
         # keeps the ip of the peer that is connected to this peer's server
@@ -76,7 +78,7 @@ class PeerServer(threading.Thread):
                         # if the user is not chatting, then the ip and the socket of
                         # this peer is assigned to server variables
                         if self.isChatRequested == 0:     
-                            print(self.username + " is connected from " + str(addr))
+                            # print(self.username + " is connected from " + str(addr))
                             self.connectedPeerSocket = connected
                             self.connectedPeerIP = addr[0]
                     # if the socket that receives the data is the one that
@@ -88,7 +90,7 @@ class PeerServer(threading.Thread):
                         logging.info("Received from " + str(self.connectedPeerIP) + " -> " + str(messageReceived))
                         # if message is a request message it means that this is the receiver side peer server
                         # so evaluate the chat request
-                        if len(messageReceived) > 11 and messageReceived[:12] == "CHAT-REQUEST":
+                        if len(messageReceived) > 11 and messageReceived[:12] == "CHAT-REQUEST" and not self.isRoomRequested:
                             # text for proper input choices is printed however OK or REJECT is taken as input in main process of the peer
                             # if the socket that we received the data belongs to the peer that we are chatting with,
                             # enters here
@@ -114,20 +116,20 @@ class PeerServer(threading.Thread):
                                 # remove the peer from the inputs list so that it will not monitor this socket
                                 inputs.remove(s)
                         # if an OK message is received then ischatrequested is made 1 and then next messages will be shown to the peer of this server
-                        elif messageReceived == "OK":
+                        elif messageReceived == "OK" and not self.isRoomRequested:
                             self.isChatRequested = 1
                         # if an REJECT message is received then ischatrequested is made 0 so that it can receive any other chat requests
-                        elif messageReceived == "REJECT":
+                        elif messageReceived == "REJECT" and not self.isRoomRequested:
                             self.isChatRequested = 0
                             inputs.remove(s)
                         # if a message is received, and if this is not a quit message ':q' and 
                         # if it is not an empty message, show this message to the user
-                        elif messageReceived[:2] != ":q" and len(messageReceived)!= 0:
+                        elif messageReceived[:2] != ":q" and len(messageReceived)!= 0 and not self.isRoomRequested:
                             print(self.chattingClientName + ": " + messageReceived)
                         # if the message received is a quit message ':q',
                         # makes ischatrequested 1 to receive new incoming request messages
                         # removes the socket of the connected peer from the inputs list
-                        elif messageReceived[:2] == ":q":
+                        elif messageReceived[:2] == ":q" and not self.isRoomRequested:
                             self.isChatRequested = 0
                             inputs.clear()
                             inputs.append(self.tcpServerSocket)
@@ -137,12 +139,23 @@ class PeerServer(threading.Thread):
                                 print("Press enter to quit the chat: ")
                         # if the message is an empty one, then it means that the
                         # connected user suddenly ended the chat(an error occurred)
-                        elif len(messageReceived) == 0:
+                        elif len(messageReceived) == 0 and not self.isRoomRequested:
                             self.isChatRequested = 0
                             inputs.clear()
                             inputs.append(self.tcpServerSocket)
                             print("User you're chatting with suddenly ended the chat")
                             print("Press enter to quit the chat: ")
+                        elif self.isRoomRequested and not self.isChatRequested:
+                            message = messageReceived.split()
+                            # gets the username of the peer sends the chat request message
+                            self.chattingClientName = message[0]
+                            messageReceived = " ".join(message[1:])
+                            if messageReceived == ":q":
+                                print("\n" + format["BRED"] + self.chattingClientName + " quit\n" + format["END"])
+                            else:
+                                print(self.chattingClientName + ": " + messageReceived)
+                            inputs.clear()
+                            inputs.append(self.tcpServerSocket)
             # handles the exceptions, and logs them
             except OSError as oErr:
                 logging.error("OSError: {0}".format(oErr))
@@ -203,7 +216,7 @@ class PeerClient(threading.Thread):
                 # as long as the server status is chatting, this client can send messages
                 while self.peerServer.isChatRequested == 1:
                     # message input prompt
-                    messageSent = input(self.username + ": ")
+                    messageSent = input("- ")
                     # sends the message to the connected peer, and logs it
                     self.tcpClientSocket.send(messageSent.encode())
                     logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
@@ -251,7 +264,7 @@ class PeerClient(threading.Thread):
             # client can send messsages as long as the server status is chatting
             while self.peerServer.isChatRequested == 1:
                 # input prompt for user to enter message
-                messageSent = input(self.username + ": ")
+                messageSent = input("- ")
                 self.tcpClientSocket.send(messageSent.encode())
                 logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
                 # if a quit message is sent, server status is changed
@@ -300,11 +313,11 @@ class peerMain:
         # timer initialization
         self.timer = None
         
-        choice = "0"
+        flag = True
         # log file initialization
         logging.basicConfig(filename="peer.log", level=logging.INFO)
         # as long as the user is not logged out, asks to select an option in the menu
-        while choice != "3":
+        while flag:
         
             # menu selection prompt
             print("_____________________________________________________")
@@ -317,16 +330,21 @@ class peerMain:
             else:
                 print("[1] " + format["BCYAN"] + "Start a chat" + format["END"])
                 print("[2] " + format["BCYAN"] + "Search user" + format["END"])
-                print("[3] " + format["BCYAN"] + "Logout" + format["END"])
-                print("[4] " + format["BCYAN"] + "Check online users" + format["END"])
-                print("[5] " + format["BCYAN"] + "Delete account" + format["END"])
+                print("[3] " + format["BCYAN"] + "Check online users" + format["END"])
+                print("[4] " + format["BCYAN"] + "Delete account" + format["END"])
+                print("[5] " + format["BCYAN"] + "Create room" + format["END"])
+                print("[6] " + format["BCYAN"] + "Join room" + format["END"])
+                print("[7] " + format["BCYAN"] + "Start a room chat" + format["END"])
+                print("[8] " + format["BCYAN"] + "Leave room" + format["END"])
+                print("[9] " + format["BCYAN"] + "Delete room" + format["END"])
+                print("[10] " + format["BCYAN"] + "Logout" + format["END"])
             
-            choice = input(format["CYAN"] + "\nChoice:" + format["END"])
+            choice = input(format["CYAN"] + "\nChoice: " + format["END"])
             print()
             
             if self.isOnline == False and (choice != "1" and choice != "2" and choice != "3"):
                 print(format["BACKRED"] + "Please Enter Correct number" + format["END"])
-            elif self.isOnline == True and (choice != "1" and choice != "2" and choice != "3" and choice != "4" and choice != "5"):
+            elif self.isOnline == True and (choice != "1" and choice != "2" and choice != "3" and choice != "4" and choice != "5" and choice != "6" and choice != "7" and choice != "8" and choice != "9" and choice != "10" and choice != "OK" and choice != "REJECT"):
                 print(format["BACKRED"] + "Please Enter Correct number" + format["END"])
             ###################################################################
             
@@ -354,12 +372,16 @@ class peerMain:
                     # creates the server thread for this peer, and runs it
                     self.peerServer = PeerServer(self.loginCredentials[0], self.peerServerPort)
                     self.peerServer.start()
+                    
+                    #self.roomServer = RoomServer(self.loginCredentials[0], self.peerServerPort)
+                    #self.roomServer.start()
                     # hello message is sent to registry
                     self.sendHelloMessage()
             ###################################################################
             
             # Exit Program
             elif choice == "3" and not self.isOnline:
+                flag = False
                 self.logout(2)
                 print(format["BGREEN"] + "You exit successfully" + format["END"])
             ###################################################################
@@ -384,13 +406,71 @@ class peerMain:
                 print("Search Account")
                 username = input(format["CYAN"] + "username: " + format["END"])
                 searchStatus = self.searchUser(username)
+                
+                if searchStatus is None:
+                    print(format["BRED"] + "\n" + username + " is not found" + format["END"])
+                elif searchStatus == 0:
+                    print(format["BRED"] + "\n" + username + " is not online..." + format["END"])
                 # if user is found its ip address is shown to user
-                if searchStatus != None and searchStatus != 0:
+                else:
+                    print(format["BGREEN"] + "\n" + username + " is found successfully..." + format["END"])
                     print("IP address of " + username + " is " + searchStatus)
             ###################################################################
             
+            #Search All Online Users
+            elif choice == "3"and self.isOnline:
+                self.onlineUsers()
+            ###################################################################
+            
+            # Delete Account
+            elif choice == "4" and self.isOnline:
+                print("Delete Account")
+                username = input(format["CYAN"] + "username: " + format["END"])
+                password = input(format["CYAN"] + "password: " + format["END"])
+                self.delete(username, password)
+            ###################################################################
+            
+            # Create Room
+            elif choice == "5" and self.isOnline:
+                print("Create Room")
+                roomname = input(format["CYAN"] + "roomname: " + format["END"])
+                password = input(format["CYAN"] + "password: " + format["END"])
+                self.createRoom(roomname, password)
+            ###################################################################
+            
+            # Join Room
+            elif choice == "6" and self.isOnline:
+                print("Join Room")
+                roomname = input(format["CYAN"] + "roomname: " + format["END"])
+                password = input(format["CYAN"] + "password: " + format["END"])
+                self.joinRoom(roomname, password)
+            ###################################################################
+            
+            # Enter Room
+            elif choice == "7" and self.isOnline:
+                status = self.showRooms()
+                if status:
+                    roomname = input(format["CYAN"] + "\nEnter Room Name: " + format["END"])
+                    self.enterRoom(roomname)
+            ###################################################################
+            
+            # Leave Room
+            elif choice == "8" and self.isOnline:
+                print("Leave Room")
+                roomname = input(format["CYAN"] + "roomname: " + format["END"])
+                self.leaveRoom(roomname)
+            ###################################################################
+            
+            # Delete Room
+            elif choice == "9" and self.isOnline:
+                print("Delete Room")
+                roomname = input(format["CYAN"] + "roomname: " + format["END"])
+                password = input(format["CYAN"] + "password: " + format["END"])
+                self.deleteRoom(roomname, password)
+            ###################################################################
+            
             # Log out
-            elif choice == "3" and self.isOnline:
+            elif choice == "10" and self.isOnline:
                 self.logout(1)
                 self.isOnline = False
                 self.loginCredentials = (None, None)
@@ -400,21 +480,6 @@ class peerMain:
                     self.peerClient.tcpClientSocket.close()
                 print(format["BGREEN"] + "Logged out successfully" + format["END"])
             ###################################################################
-            
-            #Search All Online Users
-            elif choice == "4"and self.isOnline:
-                self.onlineUsers()
-            ###################################################################
-            
-            # Delete Account
-            elif choice == "5" and self.isOnline:
-                print("Delete Account")
-                username = input(format["CYAN"] + "username: " + format["END"])
-                password = input(format["CYAN"] + "password: " + format["END"])
-                
-                self.delete(username, password)
-            ###################################################################
-            
             
             
             
@@ -447,21 +512,19 @@ class peerMain:
         # socket of the client is closed
         if choice != "CANCEL":
             self.tcpClientSocket.close()
-            
+##########################################################################################################################################
+    
+    
     # hashing function
     def dataHashed(self, data):
-        # Calculate the hash of the data
         hash_object = hashlib.sha256()
         hash_object.update(data.encode())
         data_hash = hash_object.hexdigest()
         return data_hash
+    ###################################################################
 
     # account creation function
     def createAccount(self, username, password):
-        # password is hashed to be stored in the database
-        # join message to create an account is composed and sent to registry
-        # if response is success then informs the user for account creation
-        # if response is exist then informs the user for account existence
         hashed_password = self.dataHashed(password)
         message = "JOIN " + username + " " + hashed_password
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
@@ -472,11 +535,11 @@ class peerMain:
             print(format["BGREEN"] + "\nAccount created..." + format["END"])
         elif response == "join-exist":
             print(format["BRED"] + "\nchoose another username or login..." + format["END"])
-
+    ###################################################################
+    
+    
     # login function
     def login(self, username, password, peerServerPort):
-        # a login message is composed and sent to registry
-        # an integer is returned according to each response
         hashed_password = self.dataHashed(password)
         message = "LOGIN " + username + " " + hashed_password + " " + str(peerServerPort)
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
@@ -495,6 +558,8 @@ class peerMain:
         elif response == "login-wrong-password":
             print(format["BRED"] + "\nWrong password..." + format["END"])
             return 3
+    ###################################################################
+    
     
     # logout function
     def logout(self, option):
@@ -507,27 +572,24 @@ class peerMain:
             message = "LOGOUT"
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
         self.tcpClientSocket.send(message.encode())
-        
-
+    ###################################################################
+    
+    
     # function for searching an online user
     def searchUser(self, username):
-        # a search message is composed and sent to registry
-        # custom value is returned according to each response
-        # to this search message
         message = "SEARCH " + username
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
         self.tcpClientSocket.send(message.encode())
         response = self.tcpClientSocket.recv(1024).decode().split()
         logging.info("Received from " + self.registryName + " -> " + " ".join(response))
         if response[0] == "search-success":
-            print(format["BGREEN"] + "\n" + username + " is found successfully...")
             return response[1] # this line return ip and port number
         elif response[0] == "search-user-not-online":
-            print(format["BRED"] + "\n" + username + " is not online..." + format["END"])
             return 0
         elif response[0] == "search-user-not-found":
-            print(format["BRED"] + "\n" + username + " is not found" + format["END"])
             return None
+    ###################################################################
+    
     
     # function for searching all online users
     def onlineUsers(self):
@@ -539,15 +601,14 @@ class peerMain:
         if response[0] == "Online-success":
             print(format["BGREEN"] + "Online Users:" + format["END"])
             for i in range (1,len(response)):
-                ###if response[i] == self.peerServer.username:
-                    ###continue
                 print("- "+  response[i])  
         elif response[0] == "no-user-online":
             print(format["BRED"] + "No user is online" + format["END"])
+    ###################################################################
+    
     
     # account delete function
     def delete(self, username, password):
-        # a delete message is composed and sent to registry
         hashed_password = self.dataHashed(password)
         message = "DELETE " + username + " " + hashed_password
         logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
@@ -562,6 +623,182 @@ class peerMain:
             print(format["BRED"] + "\nAccount is already online so we can't delete it now\nTry again later..." + format["END"])
         elif response == "delete-wrong-password":
             print(format["BRED"] + "\nWrong password..." + format["END"])
+    ###################################################################
+    
+    
+    # create room function
+    def createRoom(self, roomname, password):
+        hashed_password = self.dataHashed(password)
+        message = "CREATEROOM " + roomname + " " + hashed_password
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        logging.info("Received from " + self.registryName + " -> " + response)
+        if response == "room-created":
+            print(format["BGREEN"] + "\nRoom created..." + format["END"])
+            self.joinRoom(roomname, password)
+        elif response == "room-exist":
+            print(format["BRED"] + "\nChoose another roomname" + format["END"])
+    ###################################################################
+    
+    
+    # join room function
+    def joinRoom(self, roomname, password):
+        hashed_password = self.dataHashed(password)
+        message = "JOINROOM " + roomname + " " + hashed_password
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        logging.info("Received from " + self.registryName + " -> " + response)
+        if response == "room-joined":
+            print(format["BGREEN"] + "\nRoom joined successfully..." + format["END"])
+        elif response == "room-not-exist":
+            print(format["BRED"] + "\nRoom does not exist..." + format["END"])
+        elif response == "room-wrong-password":
+            print(format["BRED"] + "\nWrong password..." + format["END"])
+    ###################################################################
+    
+    
+    # show my rooms function
+    def showRooms(self):
+        message = "SHOWROOMS"
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        logging.info("Received from " + self.registryName + " -> " + response)
+        if response == "no-rooms":
+            print(format["BRED"] + "\nYou didn't join any room yet" + format["END"])
+            return 0
+        else:
+            Rooms = ast.literal_eval(response)
+            print("           Rooms")
+            for index, room in enumerate(Rooms, start=1):
+                print(f"[{index}] {room['roomname']}")
+            return 1
+    ###################################################################
+    
+    
+    # enter room function
+    def enterRoom(self, roomname):
+        message = "ENTERROOM " + roomname
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        logging.info("Received from " + self.registryName + " -> " + response)
+        if response == "valid-room":
+            members = self.roomMembers(roomname)    # retrieve room members
+            if members:
+                roomMembers = ast.literal_eval(members)
+                print("\nRoom Members")
+                for member in roomMembers:
+                    print(member["username"])
+            print("_____________________________________________________")
+            self.sendRoomMessage(roomname)
+        elif response == "invalid-room":
+            print(format["BRED"] + "\nYou don't have access to this room" + format["END"])
+        elif response == "room-not-exist":
+            print(format["BRED"] + "\nRoom does not exist..." + format["END"])        
+    ###################################################################
+    
+    
+    # enter room function
+    def exitRoom(self, roomname):
+        message = "EXITROOM " + roomname
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        print(format["BRED"] + "\nYou quit" + format["END"])
+    ###################################################################
+    
+    
+    # send message function
+    def sendRoomMessage(self, roomname):
+        print("\n                        Chat")
+        self.peerServer.isRoomRequested = 1
+        while 1:
+            msg = input()
+            members = self.onlineRoomMembers(roomname)
+            if members:
+                roomMembers = ast.literal_eval(members)
+                for member in roomMembers:
+                    cred = self.searchUser(member["username"])
+                    if cred != 0 and cred != None:
+                        memberCred = cred.split(':')
+                        ip = memberCred[0]
+                        port = memberCred[1]
+                        msgSocket = socket(AF_INET, SOCK_STREAM)
+                        msgSocket.connect((ip, int(port)))
+                        message = self.loginCredentials[0] + " " + msg
+                        logging.info("Send to " + ip + ":" + port + " -> " + message)
+                        msgSocket.send(message.encode())
+                        msgSocket.close()
+            if msg == ":q":
+                self.exitRoom(roomname)
+                self.peerServer.isRoomRequested = 0
+                break
+    ###################################################################
+    
+    
+    # search room members
+    def roomMembers(self, roomname):
+        message = "SEARCHROOM " + roomname
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        if response == "room-empty":
+            print(format["BGREEN"] + "\nRoom is empty" + format["END"])
+            return 0
+        else:
+            return response
+    ###################################################################
+    
+    # search room members
+    def onlineRoomMembers(self, roomname):
+        message = "SEARCHROOMONLINE " + roomname
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        if response == "room-empty":
+            print(format["BRED"] + "\nno members online\n" + format["END"])
+            return 0
+        else:
+            return response
+    ###################################################################
+
+
+    # delete room function
+    def deleteRoom(self, roomname, password):
+        hashed_password = self.dataHashed(password)
+        message = "DELETEROOM " + roomname + " " + hashed_password
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        logging.info("Received from " + self.registryName + " -> " + response)
+        if response == "room-deleted":
+            print(format["BGREEN"] + "\nRoom Deleted..." + format["END"])
+        elif response == "room-not-exist":
+            print(format["BRED"] + "\nRoom doesn't exist" + format["END"])
+        elif response == "room-wrong-password":
+            print(format["BRED"] + "\nIncorrect password" + format["END"])
+        elif response == "not-creator":
+            print(format["BRED"] + "\nYou can't delete the room because you aren't the owner" + format["END"])
+    ###################################################################
+    
+    
+    # leave room function
+    def leaveRoom(self, roomname):
+        message = "LEAVEROOM " + roomname
+        logging.info("Send to " + self.registryName + ":" + str(self.registryPort) + " -> " + message)
+        self.tcpClientSocket.send(message.encode())
+        response = self.tcpClientSocket.recv(1024).decode()
+        logging.info("Received from " + self.registryName + " -> " + response)
+        if response == "room-leaved":
+            print(format["BGREEN"] + "\nRoom Left..." + format["END"])
+        elif response == "room-not-exist":
+            print(format["BRED"] + "\nRoom doesn't exist" + format["END"])
+        elif response == "not-member":
+            print(format["BRED"] + "\nYou can't leave the room because you didn't join" + format["END"])
+    ###################################################################
+    
     
     # function for sending hello message
     # a timer thread is used to send hello messages to udp socket of registry
@@ -571,6 +808,9 @@ class peerMain:
         self.udpClientSocket.sendto(message.encode(), (self.registryName, self.registryUDPPort))
         self.timer = threading.Timer(1, self.sendHelloMessage)
         self.timer.start()
+##########################################################################################################################################
+
+
 
 # enables ansi escape characters in terminal
 os.system("")  

@@ -145,7 +145,7 @@ class PeerServer(threading.Thread):
                             inputs.append(self.tcpServerSocket)
                             print("User you're chatting with suddenly ended the chat")
                             print("Press enter to quit the chat: ")
-                        elif self.isRoomRequested and not self.isChatRequested:
+                        elif self.isRoomRequested and not self.isChatRequested and not(messageReceived[:12] == "CHAT-REQUEST"):
                             message = messageReceived.split()
                             # gets the username of the peer sends the chat request message
                             self.chattingClientName = message[0]

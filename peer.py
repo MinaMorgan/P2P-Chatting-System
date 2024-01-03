@@ -125,7 +125,14 @@ class PeerServer(threading.Thread):
                         # if a message is received, and if this is not a quit message ':q' and 
                         # if it is not an empty message, show this message to the user
                         elif messageReceived[:2] != ":q" and len(messageReceived)!= 0 and not self.isRoomRequested:
-                            print(self.chattingClientName + ": " + messageReceived)
+                            if messageReceived[:3]==":bi":
+                             print(self.chattingClientName + ": " +  '\033[1;3m' +messageReceived[3:] + '\033[0m')
+                            elif messageReceived[:2]==":b":
+                             print(self.chattingClientName + ": " +  '\033[1m' +messageReceived[2:] + '\033[0m')
+                            elif messageReceived[:2]==":i":
+                             print(self.chattingClientName + ": " +  '\033[3m' +messageReceived[2:] + '\033[0m')
+                            else:
+                             print(self.chattingClientName + ": " + messageReceived)
                         # if the message received is a quit message ':q',
                         # makes ischatrequested 1 to receive new incoming request messages
                         # removes the socket of the connected peer from the inputs list
@@ -361,7 +368,9 @@ class peerMain:
                 print("Log In")
                 username = input(format["CYAN"] + "username: " + format["END"])
                 password = input(format["CYAN"] + "password: " + format["END"])
-                peerServerPort = int(input(format["CYAN"] + "Enter a port number for peer server: " + format["END"]))
+                sock = socket()
+                sock.bind(('', 0))
+                peerServerPort = sock.getsockname()[1]
                 
                 status = self.login(username, password, peerServerPort)
                 # is user logs in successfully, peer variables are set

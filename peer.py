@@ -6,6 +6,7 @@ import select
 import logging
 import os
 import ast
+import sys
 
 # Server side of peer
 class PeerServer(threading.Thread):
@@ -126,11 +127,11 @@ class PeerServer(threading.Thread):
                         # if it is not an empty message, show this message to the user
                         elif messageReceived[:2] != ":q" and len(messageReceived)!= 0 and not self.isRoomRequested:
                             if messageReceived[:3]==":bi":
-                             print(self.chattingClientName + ": " +  '\033[1;3m' +messageReceived[3:] + '\033[0m')
+                             print(self.chattingClientName + ": " +  format["BOLDITALIC"] +messageReceived[3:] + format["END"])
                             elif messageReceived[:2]==":b":
-                             print(self.chattingClientName + ": " +  '\033[1m' +messageReceived[2:] + '\033[0m')
+                             print(self.chattingClientName + ": " +  format["BOLD"] +messageReceived[2:] + format["END"])
                             elif messageReceived[:2]==":i":
-                             print(self.chattingClientName + ": " +  '\033[3m' +messageReceived[2:] + '\033[0m')
+                             print(self.chattingClientName + ": " + format["ITALIC"] +messageReceived[2:] + format["END"])
                             else:
                              print(self.chattingClientName + ": " + messageReceived)
                         # if the message received is a quit message ':q',
@@ -840,6 +841,8 @@ format = {
     "BCYAN": "\033[36;1m",
     
     "BOLD": "\033[1m",
+    "ITALIC":"\033[3m",
+    "BOLDITALIC":"\033[1;3m",
     "END": "\033[0m",
 }
 # peer is started

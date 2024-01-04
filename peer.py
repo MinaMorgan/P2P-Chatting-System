@@ -225,6 +225,17 @@ class PeerClient(threading.Thread):
                 while self.peerServer.isChatRequested == 1:
                     # message input prompt
                     messageSent = input("- ")
+                    sys.stdout.write("\033[F")
+                    sys.stdout.write("\033[K") #clear line
+                    if messageSent != ":q":
+                        if messageSent[:3]==":bi":
+                            print("AdhamHaythem" + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
+                        elif messageSent[:2]==":b":
+                            print("AdhamHaythem" + ": " +  format["BOLD"] +messageSent[2:] + format["END"])
+                        elif messageSent[:2]==":i":
+                            print("AdhamHaythem" + ": " + format["ITALIC"] +messageSent[2:] + format["END"])
+                        else:
+                            print("AdhamHaythem" + ": " + messageSent)
                     # sends the message to the connected peer, and logs it
                     self.tcpClientSocket.send(messageSent.encode())
                     logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
@@ -274,6 +285,17 @@ class PeerClient(threading.Thread):
                 # input prompt for user to enter message
                 messageSent = input("- ")
                 self.tcpClientSocket.send(messageSent.encode())
+                sys.stdout.write("\033[F")
+                sys.stdout.write("\033[K") #clear line
+                if messageSent != ":q":
+                    if messageSent[:3]==":bi":
+                        print("AdhamHaythem" + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
+                    elif messageSent[:2]==":b":
+                        print("AdhamHaythem" + ": " +  format["BOLD"] +messageSent[2:] + format["END"])
+                    elif messageSent[:2]==":i":
+                        print("AdhamHaythem" + ": " + format["ITALIC"] +messageSent[2:] + format["END"])
+                    else:
+                        print("AdhamHaythem" + ": " + messageSent)
                 logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
                 # if a quit message is sent, server status is changed
                 if messageSent == ":q":

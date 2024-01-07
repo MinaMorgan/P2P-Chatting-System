@@ -4,9 +4,10 @@ from pymongo import MongoClient
 class DB:
 
 
-    # db initializations
-    def __init__(self):
-        self.client = MongoClient('mongodb://localhost:27017/')
+    def __init__(self, client=None):
+        if client is None:
+            client = MongoClient('mongodb://localhost:27017/')
+        self.client = client
         self.db = self.client['p2p-chat']
     
 

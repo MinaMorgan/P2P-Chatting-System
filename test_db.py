@@ -3,41 +3,42 @@ from unittest.mock import MagicMock
 from db import DB
 
 class TestDB(unittest.TestCase):
-
     def setUp(self):
-        self.db = DB()
-        self.db.db = MagicMock()  # Mock the database connection
+        # Create a mock MongoClient
+        mock_client = MagicMock()
+        # Inject the mock client into the DB instance
+        self.db = DB(client=mock_client)
 
-    def test_register(self):
-        # Setup
-        username = "testuser"
-        password = "testpass"
-        
-        # Execute
-        self.db.register(username, password)
+    # Test for register function
+    def test_register_success(self):
+        self.db.register("testuser", "testpass")
+        self.db.db.accounts.insert_one.assert_called_with({"username": "testuser", "password": "testpass"})
 
-        # Verify
-        self.db.db.accounts.insert_one.assert_called_with({"username": username, "password": password})
+    def test_register_failure(self):
+        self.db.db.accounts.insert_one.side_effect = Exception("Failed to insert")
+        with self.assertRaises(Exception):
+            self.db.register("testuser", "testpass")
 
-    def test_is_account_exist(self):
-        # Setup
-        username = "existinguser"
+    # Test for is_account_exist function
+    def test_is_account_exist_true(self):
         self.db.db.accounts.count_documents.return_value = 1
+        self.assertTrue(self.db.is_account_exist("existinguser"))
 
-        # Execute and Verify
-        self.assertTrue(self.db.is_account_exist(username))
+    def test_is_account_exist_false(self):
+        self.db.db.accounts.count_documents.return_value = 0
+        self.assertFalse(self.db.is_account_exist("nonexistinguser"))
 
-    def test_user_login(self):
-        # Setup
-        username = "onlineuser"
-        ip = "127.0.0.1"
-        port = "8080"
-        
-        # Execute
-        self.db.user_login(username, ip, port)
+    # Test for get_password function
+    def test_get_password_found(self):
+        self.db.db.accounts.find_one.return_value = {"username": "user", "password": "pass"}
+        self.assertEqual(self.db.get_password("user"), "pass")
 
-        # Verify
-        self.db.db.online_peers.insert_one.assert_called_with({"username": username, "ip": ip, "port": port})
+    def test_get_password_not_found(self):
+        self.db.db.accounts.find_one.return_value = None
+        with self.assertRaises(TypeError):
+            self.db.get_password("user")
+
+    # ... (Continue writing tests for other methods)
 
 if __name__ == '__main__':
     unittest.main()

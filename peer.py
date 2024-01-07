@@ -11,7 +11,7 @@ import sys
 # Server side of peer
 class PeerServer(threading.Thread):
 
-
+ 
     # Peer server initialization
     # initialized in login
     def __init__(self, username, peerServerPort):
@@ -37,6 +37,12 @@ class PeerServer(threading.Thread):
         # keeps the username of the peer that this peer is chatting with
         self.chattingClientName = None
     
+    def format_hyperlink(self, url):
+        # Check if the URL already starts with 'http://' or 'https://'
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = 'https://' + url
+        
+        return f'\033]8;;{url}\a{url}\033]8;;\a'
 
     # main method of the peer server thread
     def run(self):
@@ -126,12 +132,17 @@ class PeerServer(threading.Thread):
                         # if a message is received, and if this is not a quit message ':q' and 
                         # if it is not an empty message, show this message to the user
                         elif messageReceived[:2] != ":q" and len(messageReceived)!= 0 and not self.isRoomRequested:
+                            sys.stdout.write("\033[F")
+                            sys.stdout.write("\033[K") #clear line
                             if messageReceived[:3]==":bi":
                              print(self.chattingClientName + ": " +  format["BOLDITALIC"] +messageReceived[3:] + format["END"])
                             elif messageReceived[:2]==":b":
                              print(self.chattingClientName + ": " +  format["BOLD"] +messageReceived[2:] + format["END"])
                             elif messageReceived[:2]==":i":
                              print(self.chattingClientName + ": " + format["ITALIC"] +messageReceived[2:] + format["END"])
+                            elif messageReceived[:2]==":l":
+                                hyperlink=self.format_hyperlink(messageReceived[2:])
+                                print(self.username + ": " +hyperlink)                            
                             else:
                              print(self.chattingClientName + ": " + messageReceived)
                         # if the message received is a quit message ':q',
@@ -173,6 +184,7 @@ class PeerServer(threading.Thread):
 
 # Client side of peer
 class PeerClient(threading.Thread):
+
     # variable initializations for the client side of the peer
     def __init__(self, ipToConnect, portToConnect, username, peerServer, responseReceived):
         threading.Thread.__init__(self)
@@ -192,6 +204,13 @@ class PeerClient(threading.Thread):
         self.responseReceived = responseReceived
         # keeps if this client is ending the chat or not
         self.isEndingChat = False
+
+    def format_hyperlink(self, url):
+        # Check if the URL already starts with 'http://' or 'https://'
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = 'https://' + url
+        
+        return f'\033]8;;{url}\a{url}\033]8;;\a'
 
 
     # main method of the peer client thread
@@ -229,13 +248,16 @@ class PeerClient(threading.Thread):
                     sys.stdout.write("\033[K") #clear line
                     if messageSent != ":q":
                         if messageSent[:3]==":bi":
-                            print("AdhamHaythem" + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
+                            print(self.username + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
                         elif messageSent[:2]==":b":
-                            print("AdhamHaythem" + ": " +  format["BOLD"] +messageSent[2:] + format["END"])
+                            print(self.username + ": " +  format["BOLD"] +messageSent[2:] + format["END"])
                         elif messageSent[:2]==":i":
-                            print("AdhamHaythem" + ": " + format["ITALIC"] +messageSent[2:] + format["END"])
+                            print(self.username + ": " + format["ITALIC"] +messageSent[2:] + format["END"])
+                        elif messageSent[:2]==":l":
+                            hyperlink=self.format_hyperlink(messageSent[2:])
+                            print(self.username + ": " +hyperlink)
                         else:
-                            print("AdhamHaythem" + ": " + messageSent)
+                            print(self.username + ": " + messageSent)
                     # sends the message to the connected peer, and logs it
                     self.tcpClientSocket.send(messageSent.encode())
                     logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
@@ -289,13 +311,16 @@ class PeerClient(threading.Thread):
                 sys.stdout.write("\033[K") #clear line
                 if messageSent != ":q":
                     if messageSent[:3]==":bi":
-                        print("AdhamHaythem" + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
+                        print(self.username + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
                     elif messageSent[:2]==":b":
-                        print("AdhamHaythem" + ": " +  format["BOLD"] +messageSent[2:] + format["END"])
+                        print(self.username + ": " +  format["BOLD"] +messageSent[2:] + format["END"])
                     elif messageSent[:2]==":i":
-                        print("AdhamHaythem" + ": " + format["ITALIC"] +messageSent[2:] + format["END"])
+                        print(self.username + ": " + format["ITALIC"] +messageSent[2:] + format["END"])
+                    elif messageSent[:2]==":l":
+                        hyperlink=self.format_hyperlink(messageSent[2:])
+                        print(self.username + ": " + hyperlink)
                     else:
-                        print("AdhamHaythem" + ": " + messageSent)
+                        print(self.username + ": " + messageSent)
                 logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
                 # if a quit message is sent, server status is changed
                 if messageSent == ":q":

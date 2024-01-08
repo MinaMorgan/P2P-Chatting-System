@@ -93,6 +93,7 @@ class DB:
 
 #######################################################################################################################
     def join_room(self, roomname, username):
+      if not self.db.room_peers.find_one({"roomname": roomname, "username": username}):
         member = {
             "roomname": roomname,
             "username": username,
@@ -126,11 +127,12 @@ class DB:
 
 #######################################################################################################################
     def enter_room(self, roomname, username):
-        member = {
-            "roomname": roomname,
-            "username": username,
-        }
-        self.db.online_room_peers.insert_one(member)                                #new function
+        if not self.db.online_room_peers.find_one({"roomname": roomname, "username": username}):
+            member = {
+                "roomname": roomname,
+                "username": username,
+            }
+            self.db.online_room_peers.insert_one(member)                                #new function
 
     def exit_room(self, roomname, username):
         self.db.online_room_peers.delete_one({"roomname": roomname, "username": username})                     #new function

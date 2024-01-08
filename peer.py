@@ -123,10 +123,10 @@ class PeerServer(threading.Thread):
                                 # remove the peer from the inputs list so that it will not monitor this socket
                                 inputs.remove(s)
                         # if an OK message is received then ischatrequested is made 1 and then next messages will be shown to the peer of this server
-                        elif messageReceived == "OK" and not self.isRoomRequested:
+                        elif messageReceived.upper() == "OK" and not self.isRoomRequested:
                             self.isChatRequested = 1
                         # if an REJECT message is received then ischatrequested is made 0 so that it can receive any other chat requests
-                        elif messageReceived == "REJECT" and not self.isRoomRequested:
+                        elif messageReceived.upper() == "REJECT" and not self.isRoomRequested:
                             self.isChatRequested = 0
                             inputs.remove(s)
                         # if a message is received, and if this is not a quit message ':q' and 
@@ -135,11 +135,11 @@ class PeerServer(threading.Thread):
                             sys.stdout.write("\033[F")
                             sys.stdout.write("\033[K") #clear line
                             if messageReceived[:3]==":bi":
-                             print(self.chattingClientName + ": " +  format["BOLDITALIC"] +messageReceived[3:] + format["END"])
+                                print(self.chattingClientName + ": " +  format["BOLDITALIC"] +messageReceived[3:] + format["END"])
                             elif messageReceived[:2]==":b":
-                             print(self.chattingClientName + ": " +  format["BOLD"] +messageReceived[2:] + format["END"])
+                                print(self.chattingClientName + ": " +  format["BOLD"] +messageReceived[2:] + format["END"])
                             elif messageReceived[:2]==":i":
-                             print(self.chattingClientName + ": " + format["ITALIC"] +messageReceived[2:] + format["END"])
+                                print(self.chattingClientName + ": " + format["ITALIC"] +messageReceived[2:] + format["END"])
                             elif messageReceived[:2]==":l":
                                 hyperlink=self.format_hyperlink(messageReceived[2:])
                                 print(self.username + ": " +hyperlink)                            
@@ -172,7 +172,17 @@ class PeerServer(threading.Thread):
                             if messageReceived == ":q":
                                 print("\n" + format["BRED"] + self.chattingClientName + " quit\n" + format["END"])
                             else:
-                                print(self.chattingClientName + ": " + messageReceived)
+                                if messageReceived[:3]==":bi":
+                                    print(self.chattingClientName + ": " +  format["BOLDITALIC"] +messageReceived[3:] + format["END"])
+                                elif messageReceived[:2]==":b":
+                                    print(self.chattingClientName + ": " +  format["BOLD"] +messageReceived[2:] + format["END"])
+                                elif messageReceived[:2]==":i":
+                                    print(self.chattingClientName + ": " + format["ITALIC"] +messageReceived[2:] + format["END"])
+                                elif messageReceived[:2]==":l":
+                                    hyperlink=self.format_hyperlink(messageReceived[2:])
+                                    print(self.username + ": " +hyperlink)                            
+                                else:
+                                    print(self.chattingClientName + ": " + messageReceived)
                             inputs.clear()
                             inputs.append(self.tcpServerSocket)
             # handles the exceptions, and logs them
@@ -549,7 +559,7 @@ class peerMain:
             # if the response is ok then a client is created for this peer with the OK message and that's why it will directly
             # sent an OK message to the requesting side peer server and waits for the user input
             # main process waits for the client thread to finish its chat
-            elif choice == "OK" and self.isOnline:
+            elif choice.upper() == "OK" and self.isOnline:
                 okMessage = "OK " + self.loginCredentials[0]
                 logging.info("Send to " + self.peerServer.connectedPeerIP + " -> " + okMessage)
                 self.peerServer.connectedPeerSocket.send(okMessage.encode())
@@ -557,12 +567,12 @@ class peerMain:
                 self.peerClient.start()
                 self.peerClient.join()
             # if user rejects the chat request then reject message is sent to the requester side
-            elif choice == "REJECT" and self.isOnline:
+            elif choice.upper() == "REJECT" and self.isOnline:
                 self.peerServer.connectedPeerSocket.send("REJECT".encode())
                 self.peerServer.isChatRequested = 0
                 logging.info("Send to " + self.peerServer.connectedPeerIP + " -> REJECT")
             # if choice is cancel timer for hello message is cancelled
-            elif choice == "CANCEL":
+            elif choice.upper() == "CANCEL":
                 self.timer.cancel()
                 break
         # if main process is not ended with cancel selection
@@ -773,6 +783,20 @@ class peerMain:
         self.peerServer.isRoomRequested = 1
         while 1:
             msg = input()
+            sys.stdout.write("\033[F")
+            sys.stdout.write("\033[K") #clear line
+            if msg != ":q":
+                if msg[:3]==":bi":
+                    print(self.loginCredentials[0] + ": " +  format["BOLDITALIC"] +msg[3:] + format["END"])
+                elif msg[:2]==":b":
+                    print(self.loginCredentials[0] + ": " +  format["BOLD"] +msg[2:] + format["END"])
+                elif msg[:2]==":i":
+                    print(self.loginCredentials[0] + ": " + format["ITALIC"] +msg[2:] + format["END"])
+                elif msg[:2]==":l":
+                    hyperlink=self.format_hyperlink(msg[2:])
+                    print(self.loginCredentials[0] + ": " +hyperlink)
+                else:
+                    print(self.loginCredentials[0] + ": " + msg)
             members = self.onlineRoomMembers(roomname)
             if members:
                 roomMembers = ast.literal_eval(members)
@@ -855,7 +879,13 @@ class peerMain:
         elif response == "not-member":
             print(format["BRED"] + "\nYou can't leave the room because you didn't join" + format["END"])
     ###################################################################
-    
+    def format_hyperlink(self, url):
+        # Check if the URL already starts with 'http://' or 'https://'
+        if not url.startswith('http://') and not url.startswith('https://'):
+            url = 'https://' + url
+        
+        return f'\033]8;;{url}\a{url}\033]8;;\a'
+    ###################################################################
     
     # function for sending hello message
     # a timer thread is used to send hello messages to udp socket of registry

@@ -198,7 +198,7 @@ class PeerServer(threading.Thread):
 class PeerClient(threading.Thread):
 
     # variable initializations for the client side of the peer
-    def __init__(self, ipToConnect, portToConnect, username, peerServer, responseReceived):
+    def __init__(self, ipToConnect, portToConnect, username, peerServer, responseReceived,otherUser=None):
         threading.Thread.__init__(self)
         # keeps the ip address of the peer that this will connect
         self.ipToConnect = ipToConnect
@@ -214,6 +214,8 @@ class PeerClient(threading.Thread):
         # if the client is created with a phrase, it means this one received the request
         # this phrase should be none if this is the client of the requester peer
         self.responseReceived = responseReceived
+
+        self.otherUser=otherUser
         # keeps if this client is ending the chat or not
         self.isEndingChat = False
 
@@ -246,7 +248,7 @@ class PeerClient(threading.Thread):
             self.responseReceived = self.responseReceived.split()
             # if response is ok then incoming messages will be evaluated as client messages and will be sent to the connected server
             if self.responseReceived[0] == "OK":
-                print(format["BGREEN"] + self.username + " accepted chat" + format["END"] + "\n")
+                print(format["BGREEN"] + self.otherUser + " accepted chat" + format["END"] + "\n")
                 # changes the status of this client's server to chatting
                 self.peerServer.isChatRequested = 1
                 # sets the server variable with the username of the peer that this one is chatting
@@ -257,8 +259,12 @@ class PeerClient(threading.Thread):
                     messageSent = input()
                     sys.stdout.write("\033[F")
                     sys.stdout.write("\033[K") #clear line
-                    if messageSent != ":q":
-                        if messageSent[:3]==":bi":
+                    if messageSent == ":q":
+                        self.peerServer.isChatRequested = 0
+                        self.isEndingChat = True
+                        break
+                    if messageSent != ":q"and self.peerServer.isChatRequested == 1:
+                        if messageSent[:3]==":bi"  :
                             print(self.username + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
                         elif messageSent[:2]==":b":
                             print(self.username + ": " +  format["BOLD"] +messageSent[2:] + format["END"])
@@ -274,10 +280,7 @@ class PeerClient(threading.Thread):
                     logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
                     # if the quit message is sent, then the server status is changed to not chatting
                     # and this is the side that is ending the chat
-                    if messageSent == ":q":
-                        self.peerServer.isChatRequested = 0
-                        self.isEndingChat = True
-                        break
+
                 # if peer is not chatting, checks if this is not the ending side
                 if self.peerServer.isChatRequested == 0:
                     if not self.isEndingChat:
@@ -319,7 +322,13 @@ class PeerClient(threading.Thread):
                 self.tcpClientSocket.send(messageSent.encode())
                 sys.stdout.write("\033[F")
                 sys.stdout.write("\033[K") #clear line
-                if messageSent != ":q":
+                  # if a quit message is sent, server status is changed
+                if messageSent == ":q":
+                    self.peerServer.isChatRequested = 0
+                    self.isEndingChat = True
+                    print(format["BRED"]+"You have left the chat"+format["END"])
+                    break
+                if messageSent != ":q" and self.peerServer.isChatRequested == 1:
                     if messageSent[:3]==":bi":
                         print(self.username + ": " +  format["BOLDITALIC"] +messageSent[3:] + format["END"])
                     elif messageSent[:2]==":b":
@@ -332,11 +341,6 @@ class PeerClient(threading.Thread):
                     else:
                         print(self.username + ": " + messageSent)
                 logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + messageSent)
-                # if a quit message is sent, server status is changed
-                if messageSent == ":q":
-                    self.peerServer.isChatRequested = 0
-                    self.isEndingChat = True
-                    break
             # if server is not chatting, and if this is not the ending side
             # sends a quitting message to the server of the other peer
             # then closes the socket
@@ -463,7 +467,7 @@ class peerMain:
                 # main process waits for the client thread to finish its chat
                 if searchStatus != None and searchStatus != 0:
                     searchStatus = searchStatus.split(":")
-                    self.peerClient = PeerClient(searchStatus[0], int(searchStatus[1]) , self.loginCredentials[0], self.peerServer, None)
+                    self.peerClient = PeerClient(searchStatus[0], int(searchStatus[1]) , self.loginCredentials[0], self.peerServer, None,username)
                     self.peerClient.start()
                     self.peerClient.join()
             ###################################################################

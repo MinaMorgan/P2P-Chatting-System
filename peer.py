@@ -132,8 +132,7 @@ class PeerServer(threading.Thread):
                         # if a message is received, and if this is not a quit message ':q' and 
                         # if it is not an empty message, show this message to the user
                         elif messageReceived[:2] != ":q" and len(messageReceived)!= 0 and not self.isRoomRequested:
-                            sys.stdout.write("\033[F")
-                            sys.stdout.write("\033[K") #clear line
+
                             if messageReceived[:3]==":bi":
                                 print(self.chattingClientName + ": " +  format["BOLDITALIC"] +messageReceived[3:] + format["END"])
                             elif messageReceived[:2]==":b":
@@ -253,7 +252,7 @@ class PeerClient(threading.Thread):
                 # as long as the server status is chatting, this client can send messages
                 while self.peerServer.isChatRequested == 1:
                     # message input prompt
-                    messageSent = input("- ")
+                    messageSent = input()
                     sys.stdout.write("\033[F")
                     sys.stdout.write("\033[K") #clear line
                     if messageSent != ":q":
@@ -315,7 +314,7 @@ class PeerClient(threading.Thread):
             # client can send messsages as long as the server status is chatting
             while self.peerServer.isChatRequested == 1:
                 # input prompt for user to enter message
-                messageSent = input("- ")
+                messageSent = input()
                 self.tcpClientSocket.send(messageSent.encode())
                 sys.stdout.write("\033[F")
                 sys.stdout.write("\033[K") #clear line
@@ -409,7 +408,7 @@ class peerMain:
             
             if self.isOnline == False and (choice != "1" and choice != "2" and choice != "3"):
                 print(format["BACKRED"] + "Please Enter Correct number" + format["END"])
-            elif self.isOnline == True and (choice != "1" and choice != "2" and choice != "3" and choice != "4" and choice != "5" and choice != "6" and choice != "7" and choice != "8" and choice != "9" and choice != "10" and choice != "OK" and choice != "REJECT"):
+            elif self.isOnline == True and (choice != "1" and choice != "2" and choice != "3" and choice != "4" and choice != "5" and choice != "6" and choice != "7" and choice != "8" and choice != "9" and choice != "10" and choice.upper() != "OK" and choice.upper() != "REJECT"):
                 print(format["BACKRED"] + "Please Enter Correct number" + format["END"])
             ###################################################################
             

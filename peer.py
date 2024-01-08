@@ -96,7 +96,12 @@ class PeerServer(threading.Thread):
                         logging.info("Received from " + str(self.connectedPeerIP) + " -> " + str(messageReceived))
                         # if message is a request message it means that this is the receiver side peer server
                         # so evaluate the chat request
-                        if len(messageReceived) > 11 and messageReceived[:12] == "CHAT-REQUEST" and not self.isRoomRequested:
+                        if self.isRoomRequested and len(messageReceived) > 11 and (messageReceived[:12] == "CHAT-REQUEST"):
+                            message = "BUSY"
+                            s.send(message.encode())
+                            # remove the peer from the inputs list so that it will not monitor this socket
+                            inputs.remove(s)
+                        elif len(messageReceived) > 11 and messageReceived[:12] == "CHAT-REQUEST" and not self.isRoomRequested:
                             # text for proper input choices is printed however OK or REJECT is taken as input in main process of the peer
                             # if the socket that we received the data belongs to the peer that we are chatting with,
                             # enters here
@@ -108,8 +113,8 @@ class PeerServer(threading.Thread):
                                 # gets the username of the peer sends the chat request message
                                 self.chattingClientName = messageReceived[2]
                                 # prints prompt for the incoming chat request
-                                print("Incoming chat request from " + self.chattingClientName)
-                                print("Enter OK to accept or REJECT to reject:  ")
+                                print(format["YELLOW"] + "\n\nIncoming chat request from " + self.chattingClientName + format["END"])
+                                print(format["YELLOW"] + "Enter OK to accept or REJECT to reject:  " + format["END"])
                                 # makes isChatRequested = 1 which means that peer is chatting with someone
                                 self.isChatRequested = 1
                             # if the socket that we received the data does not belong to the peer that we are chatting with
@@ -151,16 +156,16 @@ class PeerServer(threading.Thread):
                             inputs.append(self.tcpServerSocket)
                             # connected peer ended the chat
                             if len(messageReceived) == 2:
-                                print("User you're chatting with ended the chat")
-                                print("Press enter to quit the chat: ")
+                                print(format["BRED"] + "\nUser you're chatting with ended the chat" + format["END"])
+                                print(format["BRED"] + "Press enter to quit the chat: " + format["END"])
                         # if the message is an empty one, then it means that the
                         # connected user suddenly ended the chat(an error occurred)
                         elif len(messageReceived) == 0 and not self.isRoomRequested:
                             self.isChatRequested = 0
                             inputs.clear()
                             inputs.append(self.tcpServerSocket)
-                            print("User you're chatting with suddenly ended the chat")
-                            print("Press enter to quit the chat: ")
+                            print(format["BRED"] + "\nUser you're chatting with suddenly ended the chat" + format["END"])
+                            print(format["BRED"] + "Press enter to quit the chat: " + format["END"])
                         elif self.isRoomRequested and not self.isChatRequested and not(messageReceived[:12] == "CHAT-REQUEST"):
                             message = messageReceived.split()
                             # gets the username of the peer sends the chat request message
@@ -224,9 +229,6 @@ class PeerClient(threading.Thread):
     def run(self):
         # connects to the server of other peer
         self.tcpClientSocket.connect((self.ipToConnect, self.portToConnect))
-        if self.peerServer.isRoomRequested == 1:
-            self.isEndingChat = True
-            print(format["BRED"] + "Peer is busy at the moment" + format["END"])
         # if the server of this peer is not connected by someone else and if this is the requester side peer client then enters here
         if self.peerServer.isChatRequested == 0 and self.responseReceived is None:
             # composes a request message and this is sent to server and then this waits a response message from the server this client connects
@@ -235,7 +237,7 @@ class PeerClient(threading.Thread):
             logging.info("Send to " + self.ipToConnect + ":" + str(self.portToConnect) + " -> " + requestMessage)
             # sends the chat request
             self.tcpClientSocket.send(requestMessage.encode())
-            print("\nWaiting for " + self.username + " to respond")
+            print("\nWaiting for response")
             # received a response from the peer which the request message is sent to
             self.responseReceived = self.tcpClientSocket.recv(1024).decode()
             # logs the received message

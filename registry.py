@@ -248,12 +248,16 @@ class ClientThread(threading.Thread):
                     else:
                         roomdetails = db.get_room_details(message[1])
                         if roomdetails["password"] == message[2]:
-                            db.join_room(message[1],self.username)
-                            print(format["BGREEN"] + "Room joined:" + format["END"])
-                            print("IP address: " + format["BBLUE"] + self.ip + format["END"])
-                            print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
-                            print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
-                            response = "room-joined"
+                            isMember = db.is_user_in_room(message[1], self.username)
+                            if not isMember:
+                                db.join_room(message[1],self.username)
+                                print(format["BGREEN"] + "Room joined:" + format["END"])
+                                print("IP address: " + format["BBLUE"] + self.ip + format["END"])
+                                print("Port number: " + format["BBLUE"] + str(self.port) + format["END"])
+                                print("\n" + format["YELLOW"] + "Listening for incoming connections..." + format["END"] + "\n")
+                                response = "room-joined"
+                            else:
+                                response = "already-joined"
                         # if password not matches and then login-wrong-password response is sent
                         else:
                             response = "room-wrong-password"
@@ -393,6 +397,7 @@ class UDPServer(threading.Thread):
             db.user_logout(self.username)
             if self.username in tcpThreads:
                 del tcpThreads[self.username]
+        db.exit_all_rooms(self.username)
         self.tcpClientSocket.close()
         print(format["BRED"] + "Connection lost:" + format["END"])
         print("IP address: " + format["BBLUE"] + self.ip + format["END"])

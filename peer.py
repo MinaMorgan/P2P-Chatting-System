@@ -471,6 +471,10 @@ class peerMain:
                     self.peerClient.start()
                     self.peerClient.join()
             ###################################################################
+                elif searchStatus== 0:
+                    print (format["BRED"]+"User is not online "+format["END"])
+                elif searchStatus == None :
+                    print (format["BRED"]+"No such user exists "+format["END"])
             
             # Search User
             elif choice == "2" and self.isOnline:
